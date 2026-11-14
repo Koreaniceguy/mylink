@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -22,14 +23,14 @@ import {
   ExternalLink,
   CheckCircle2,
   AlertCircle,
-  HelpCircle,
+  Loader2,
 } from "lucide-react";
 
 interface LinkDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialData?: LinkItem | null;
-  onSave: (data: Omit<LinkItem, "id" | "clicks">) => void;
+  onSave: (data: Omit<LinkItem, "id" | "clicks">) => Promise<void> | void;
 }
 
 // 빠른 설정을 위한 추천 프리셋 목록
@@ -105,6 +106,7 @@ export function LinkDialog({
   const [icon, setIcon] = useState("globe");
   const [isActive, setIsActive] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 모달이 열리거나 대상 데이터가 바뀔 때 초기화
   useEffect(() => {
@@ -121,6 +123,7 @@ export function LinkDialog({
         setIsActive(true);
       }
       setErrorMessage(null);
+      setIsSubmitting(false);
     }
   }, [open, initialData]);
 
@@ -144,7 +147,7 @@ export function LinkDialog({
     setErrorMessage(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const trimmedTitle = title.trim();
@@ -170,14 +173,24 @@ export function LinkDialog({
       trimmedUrl = `https://${trimmedUrl}`;
     }
 
-    onSave({
-      title: trimmedTitle,
-      url: trimmedUrl,
-      icon,
-      isActive,
-    });
-
-    onOpenChange(false);
+    try {
+      setIsSubmitting(true);
+      setErrorMessage(null);
+      await onSave({
+        title: trimmedTitle,
+        url: trimmedUrl,
+        icon,
+        isActive,
+      });
+      onOpenChange(false);
+    } catch (err: unknown) {
+      console.error("링크 저장 중 오류:", err);
+      setErrorMessage(
+        err instanceof Error ? err.message : "저장 중 오류가 발생했습니다. 다시 시도해주세요."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -363,13 +376,28 @@ export function LinkDialog({
               type="button"
               variant="secondary"
               size="sm"
+              disabled={isSubmitting}
               onClick={() => onOpenChange(false)}
             >
               취소
             </Button>
-            <Button type="submit" size="sm" className="gap-1.5 shadow-xs">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>{isEditing ? "수정 저장" : "새 링크 추가"}</span>
+            <Button
+              type="submit"
+              size="sm"
+              className="gap-1.5 shadow-xs"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>저장 중...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>{isEditing ? "수정 저장" : "새 링크 추가"}</span>
+                </>
+              )}
             </Button>
           </DialogFooter>
         </form>
