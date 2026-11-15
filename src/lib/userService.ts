@@ -29,7 +29,7 @@ export interface UserDocumentData {
 
 /**
  * displayName으로 Firestore users 컬렉션에서 단일 사용자를 검색합니다.
- * @param displayName 검색할 사용자 displayName (예: '홍길동')
+ * @param displayName 검색할 사용자 displayName (예: '홍길동', '승준')
  * @returns UserDocumentData 또는 null
  */
 export async function getUserByDisplayName(displayName: string): Promise<UserDocumentData | null> {
@@ -39,10 +39,23 @@ export async function getUserByDisplayName(displayName: string): Promise<UserDoc
 
   const trimmedName = displayName.trim();
   const usersRef = collection(db, "users");
-  const q = query(usersRef, where("displayName", "==", trimmedName), limit(1));
-  const querySnapshot = await getDocs(q);
 
+  // 1. displayName 필드로 검색
+  let q = query(usersRef, where("displayName", "==", trimmedName), limit(1));
+  let querySnapshot = await getDocs(q);
+
+  // 2. 일치하는 결과가 없으면 profile.name 필드로 보조 검색
   if (querySnapshot.empty) {
+    q = query(usersRef, where("profile.name", "==", trimmedName), limit(1));
+    querySnapshot = await getDocs(q);
+  }
+
+  // 3. 일치하는 결과가 없으면 UID로 직접 조회 시도 (혹시 URL에 UID를 입력한 경우)
+  if (querySnapshot.empty) {
+    const directUser = await getUserById(trimmedName);
+    if (directUser) {
+      return directUser;
+    }
     return null;
   }
 

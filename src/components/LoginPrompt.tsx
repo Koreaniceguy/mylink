@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 export function LoginPrompt() {
-  const { loginWithGoogle } = useAuth();
+  const { loginWithGoogle, authErrorMessage } = useAuth();
   const { showToast } = useToast();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
@@ -27,9 +27,18 @@ export function LoginPrompt() {
       if (user) {
         showToast(`${user.displayName || "사용자"}님, 환영합니다! 🎉`, "success");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      showToast("Google 로그인 중 오류가 발생했습니다. 다시 시도해주세요.", "error");
+      const errCode = error?.code;
+      if (errCode === "auth/unauthorized-domain") {
+        showToast("Firebase 콘솔에 koreaniceguy.github.io 도메인 등록이 필요합니다.", "error");
+      } else if (errCode === "auth/popup-blocked") {
+        showToast("팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.", "error");
+      } else if (errCode === "auth/popup-closed-by-user") {
+        showToast("로그인 창이 닫혔습니다.", "info");
+      } else {
+        showToast("Google 로그인 중 오류가 발생했습니다. 다시 시도해주세요.", "error");
+      }
     } finally {
       setIsLoggingIn(false);
     }
@@ -109,6 +118,23 @@ export function LoginPrompt() {
               </p>
             </div>
           </div>
+
+          {/* 로그인 에러 발생 시 상세 안내 (예: 도메인 미승인 안내) */}
+          {authErrorMessage && (
+            <div className="w-full max-w-md mb-6 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-left">
+              <div className="flex items-start gap-2.5">
+                <span className="text-rose-600 dark:text-rose-400 font-bold shrink-0 text-base">⚠️</span>
+                <div className="space-y-1">
+                  <h4 className="text-xs font-bold text-rose-700 dark:text-rose-300">
+                    Google 로그인 연결 실패
+                  </h4>
+                  <p className="text-xs text-rose-600/90 dark:text-rose-400 leading-relaxed break-keep">
+                    {authErrorMessage}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Google 로그인 큰 CTA 버튼 */}
           <div className="flex flex-col items-center gap-3 w-full max-w-sm">

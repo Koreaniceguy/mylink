@@ -41,7 +41,10 @@ export function Navbar({ viewMode, setViewMode }: NavbarProps) {
 
   const handleCopyShareUrl = () => {
     if (typeof window !== "undefined") {
-      navigator.clipboard.writeText(window.location.href);
+      const shareUrl = user?.displayName
+        ? `${window.location.origin}${process.env.NODE_ENV === "production" ? "/mylink" : ""}/${encodeURIComponent(user.displayName)}`
+        : window.location.href;
+      navigator.clipboard.writeText(shareUrl);
       showToast("프로필 링크가 클립보드에 복사되었습니다! 🎉", "success");
     }
   };
@@ -64,9 +67,18 @@ export function Navbar({ viewMode, setViewMode }: NavbarProps) {
       if (loggedInUser) {
         showToast(`${loggedInUser.displayName || "사용자"}님 환영합니다! 🎉`, "success");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      showToast("Google 로그인 중 오류가 발생했습니다. 다시 시도해주세요.", "error");
+      const errCode = error?.code;
+      if (errCode === "auth/unauthorized-domain") {
+        showToast("Firebase 콘솔에 koreaniceguy.github.io 도메인 등록이 필요합니다.", "error");
+      } else if (errCode === "auth/popup-blocked") {
+        showToast("팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.", "error");
+      } else if (errCode === "auth/popup-closed-by-user") {
+        showToast("로그인 창이 닫혔습니다.", "info");
+      } else {
+        showToast("Google 로그인 중 오류가 발생했습니다. 다시 시도해주세요.", "error");
+      }
     } finally {
       setIsLoggingIn(false);
     }
